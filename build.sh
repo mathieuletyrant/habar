@@ -57,7 +57,7 @@ cask "habar" do
   desc "Native menu bar app for Home Assistant"
   homepage "https://github.com/mathieuletyrant/habar"
 
-  depends_on macos: ">= :tahoe"
+  depends_on macos: :tahoe
   depends_on arch: :arm64
 
   app "HABar.app"
