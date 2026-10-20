@@ -63,8 +63,9 @@ cask "habar" do
   app "HABar.app"
 
   # Not notarized (no Apple Developer account): drop quarantine so Gatekeeper lets it launch.
-  postflight do
-    system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{appdir}/HABar.app"]
+  # Done on the staged copy (steps run there), before it moves to /Applications.
+  preflight_steps do
+    run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "HABar.app"], chdir: "."
   end
 
   uninstall quit: "com.mathieuletyrant.habar"
