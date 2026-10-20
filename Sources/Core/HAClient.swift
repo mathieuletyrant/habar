@@ -1,4 +1,5 @@
 import AppKit
+import ImageIO
 import UserNotifications
 import Observation
 import os
@@ -74,7 +75,7 @@ final class HAClient {
         }
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
         for t in tiles where t.kind == .camera {
-            cameraImages[t.entityId] = NSImage(contentsOf: cacheFile(t.entityId))
+            cameraImages[t.entityId] = (try? Data(contentsOf: cacheFile(t.entityId))).flatMap(Self.thumbnail)
         }
         connect()
         startCameraLoop()
@@ -158,9 +159,9 @@ final class HAClient {
             Task {
                 if let c = try? await request(["type": "get_config"]) as? [String: Any],
                    let name = c["location_name"] as? String { homeName = name }
-                await loadEntities()  // also discovers update.* and power entities to watch
-                await loadAreas()
+                await loadEntities(keep: false)  // discovers update.* and power entities to watch
                 await loadEnergyPrefs()
+                await loadAreas()  // after power entities are known: only their areas are kept
             }
         case "auth_invalid":
             let old = ws
@@ -336,7 +337,9 @@ final class HAClient {
         try? await request(["type": "update/release_notes", "entity_id": entityId]) as? String
     }
 
-    func loadEntities() async {
+    /// `keep: false` only extracts what's watched: the full list (every entity, every attribute) is the app's
+    /// biggest memory cost, so it's held only while the entity picker is open.
+    func loadEntities(keep: Bool = true) async {
         guard let list = try? await request(["type": "get_states"]) as? [[String: Any]] else { return }
         allEntities = list.compactMap { s in
             guard let id = s["entity_id"] as? String else { return nil }
@@ -346,6 +349,7 @@ final class HAClient {
         .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         updateIds = Set(allEntities.map(\.id).filter { $0.hasPrefix("update.") })
         if energyDevices.isEmpty { powerIds = Set(allEntities.filter { $0.state.deviceClass == "power" && $0.state.watts != nil }.map(\.id)) }
+        if !keep { allEntities = [] }
         resubscribe()
     }
 
@@ -382,7 +386,7 @@ final class HAClient {
         devicesBySlug = bySlug
         var map: [String: String] = [:]
         for e in entities {
-            guard let id = e["entity_id"] as? String else { continue }
+            guard let id = e["entity_id"] as? String, powerIds.contains(id) else { continue }
             let area = (e["area_id"] as? String) ?? (e["device_id"] as? String).flatMap { deviceArea[$0] }
             map[id] = area.flatMap { areaName[$0] }
         }
@@ -462,7 +466,7 @@ final class HAClient {
         do {
             let (data, resp) = try await URLSession.shared.data(for: req)
             let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
-            guard code == 200, let img = NSImage(data: data) else {
+            guard code == 200, let img = Self.thumbnail(data) else {
                 log.error("camera \(entityId, privacy: .public): HTTP \(code)")
                 return
             }
@@ -471,6 +475,15 @@ final class HAClient {
         } catch {
             log.error("camera \(entityId, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    /// Decodes at display size (tiles are at most ~350 pt wide): a full-resolution frame costs ~15 MB once decoded.
+    private nonisolated static func thumbnail(_ data: Data) -> NSImage? {
+        let options = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceThumbnailMaxPixelSize: 800,
+                       kCGImageSourceCreateThumbnailWithTransform: true] as CFDictionary
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options) else { return nil }
+        return NSImage(cgImage: image, size: .zero)
     }
 
     private func cacheFile(_ entityId: String) -> URL { cacheDir.appending(path: "\(entityId).jpg") }

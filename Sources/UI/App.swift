@@ -20,9 +20,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNU
     private var closedAt = Date.distantPast
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let host = NSHostingController(rootView: PopoverView().environment(ha))
-        host.sizingOptions = .preferredContentSize  // popover follows the SwiftUI content size
-        popover.contentViewController = host
         popover.behavior = .transient
         popover.delegate = self
         item.button?.target = self
@@ -72,6 +69,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNU
         guard !popover.isShown, let button = item.button else { return }
         NSApp.activate()
         popover.appearance = NSApp.effectiveAppearance  // "Auto" follows the system as it is right now
+        // Built on every open, dropped on close: a closed popover would otherwise keep 30-90 MB of rendering alive.
+        // Data (states, camera frames) lives in HAClient, so this only redraws.
+        let host = NSHostingController(rootView: PopoverView().environment(ha))
+        host.sizingOptions = .preferredContentSize  // popover follows the SwiftUI content size
+        host.view.layoutSubtreeIfNeeded()  // measured before it's on screen: no grow-in jump
+        popover.contentViewController = host
+        popover.contentSize = host.view.fittingSize
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
     }
@@ -94,6 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNU
     func popoverDidClose(_ notification: Notification) {
         ha.isOpen = false
         closedAt = Date()
+        popover.contentViewController = nil
     }
 }
 

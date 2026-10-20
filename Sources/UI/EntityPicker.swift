@@ -53,6 +53,7 @@ struct EntityPicker: View {
             focused = true
             Task { await ha.loadEntities() }
         }
+        .onDisappear { ha.allEntities = [] }  // the full entity list is only needed here
     }
 
     private func chip(_ kind: TileKind?, _ label: String) -> some View {

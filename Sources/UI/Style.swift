@@ -39,14 +39,22 @@ struct TileSection<Content: View>: View {
 
 /// ScrollView that hugs its content and only scrolls past `maxHeight`
 /// (a plain ScrollView has no intrinsic height inside a MenuBarExtra window).
+/// Last measured content height per scroll area: the popover is rebuilt on every open,
+/// and starting from 0 would make it visibly grow on the first frame.
+private var lastHeights: [CGFloat: CGFloat] = [:]
+
 struct AutoScroll<Content: View>: View {
     var maxHeight: CGFloat
     @ViewBuilder var content: Content
-    @State private var height: CGFloat = 0
+    @State private var height: CGFloat?
 
     var body: some View {
+        let height = height ?? lastHeights[maxHeight] ?? 0
         ScrollView {
-            content.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+            content.onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                self.height = $0
+                lastHeights[maxHeight] = $0
+            }
         }
         .scrollIndicators(.never)
         .scrollBounceBehavior(.basedOnSize)
