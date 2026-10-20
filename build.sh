@@ -22,3 +22,10 @@ if [ "$1" = "install" ]; then
     open /Applications/HABar.app
     echo "Installed /Applications/HABar.app"
 fi
+
+# Publish a GitHub release (the Homebrew cask always installs the latest one).
+if [ "$1" = "release" ]; then
+    VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" Info.plist)
+    ditto -c -k --keepParent "$APP" build/HABar.zip
+    gh release create "v$VERSION" build/HABar.zip --title "HABar $VERSION" --generate-notes
+fi
