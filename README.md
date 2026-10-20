@@ -7,8 +7,9 @@ A native macOS menu bar app for [Home Assistant](https://www.home-assistant.io).
 - ⚡ **Live**: one persistent WebSocket (`subscribe_entities`), no polling. The popover opens already up to date.
 - 🌡️ **Sensors and toggles**: Control Center–style tiles. Tap a light, switch or fan to toggle it.
 - 📹 **Cameras**: snapshot grid, click to enlarge. Refreshed every 2 s while open, every 60 s in the background, and the last frame is cached on disk so reopening is instant.
-- 🛡️ **Alarm**: arm without a code, disarm with your PIN (asked only when HA requires one).
-- 🔌 **Energy by room**: live power per floor and room, from your HA Energy dashboard (same source and hierarchy as HA's power flow card).
+- ♨️ **Climate**: thermostats, ACs and heaters as compact tiles named after their room; click for mode and target.
+- 🛡️ **Alarm**: a header badge; arm without a code, disarm with your PIN (asked only when HA requires one).
+- 🔌 **Rooms**: every HA room with its temperature, humidity and live power (from your HA Energy dashboard, same source and hierarchy as HA's power flow card).
 - 🔔 **Notifications and updates**: HA persistent notifications and available updates, with release notes and one-click install.
 - 💬 **Mac notifications**: notifications your automations already send to your phone also show up on the Mac, without changing them.
 - 📊 **Menu bar**: pick what shows next to the icon, e.g. alarm lock state and total power.

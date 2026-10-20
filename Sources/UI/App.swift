@@ -127,6 +127,9 @@ func menuBarImage(_ ha: HAClient) -> NSImage {
                 HStack(spacing: 3) {
                     Image(systemName: t.menuSymbol(e)).font(.system(size: 11.5, weight: .semibold))
                     if t.kind == .sensor { Text(e?.display ?? "—") }
+                    if t.kind == .climate, let c = (e?.attributes["current_temperature"] as? NSNumber)?.doubleValue {
+                        Text(ClimateState.degrees(c))
+                    }
                 }
             }
         }

@@ -31,9 +31,10 @@ struct EntityPicker: View {
             .frame(height: 36)
             .glassEffect(in: .capsule)
 
+            // icon chips (name only on the selected one) so every filter fits on one line
             HStack(spacing: 6) {
-                chip(nil, L("Tout"))
-                ForEach(TileKind.allCases) { chip($0, $0.plural) }
+                chip(nil)
+                ForEach(TileKind.allCases) { chip($0) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -56,10 +57,16 @@ struct EntityPicker: View {
         .onDisappear { ha.allEntities = [] }  // the full entity list is only needed here
     }
 
-    private func chip(_ kind: TileKind?, _ label: String) -> some View {
+    private func chip(_ kind: TileKind?) -> some View {
         let selected = filter == kind
+        let label = kind?.plural ?? L("Tout")
         return Button { withAnimation(.snappy) { filter = kind } } label: {
-            Text(label)
+            HStack(spacing: 5) {
+                // same box for every symbol: their natural sizes differ (the thermometer is taller)
+                if let kind { Image(systemName: kind.icon).frame(width: 16, height: 16) }
+                if kind == nil || selected { Text(label).lineLimit(1).fixedSize() }
+            }
+                .frame(minWidth: 20, minHeight: 16)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(selected ? .white : .primary)
                 .padding(.horizontal, 10)
@@ -67,6 +74,7 @@ struct EntityPicker: View {
                 .glassEffect(selected ? .regular.tint(.accentColor) : .regular, in: .capsule)
         }
         .buttonStyle(.pressable)
+        .help(label)
     }
 
     private func row(_ ent: EntityRef, added: Bool) -> some View {

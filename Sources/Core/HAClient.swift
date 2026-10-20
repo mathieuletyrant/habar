@@ -412,7 +412,8 @@ final class HAClient {
         devicesBySlug = bySlug
         var map: [String: String] = [:]
         for e in entities {
-            guard let id = e["entity_id"] as? String, powerIds.contains(id) else { continue }
+            // kept only where it's shown: power devices (rooms) and climate entities (named after their room)
+            guard let id = e["entity_id"] as? String, powerIds.contains(id) || id.hasPrefix("climate.") else { continue }
             let area = (e["area_id"] as? String) ?? (e["device_id"] as? String).flatMap { deviceArea[$0] }
             map[id] = area.flatMap { areaName[$0] }
         }
@@ -435,6 +436,8 @@ final class HAClient {
     }
 
     struct EnergyDevice { let stat: String; let rate: String; let name: String?; let parent: String? }
+    func areaName(_ entityId: String) -> String? { areaByEntity[entityId] }
+
     struct PowerItem: Identifiable { let id: String; let name: String; let watts: Double }
     struct Room: Identifiable {
         let id: String; let floor: String?; let watts: Double

@@ -1,13 +1,14 @@
 import SwiftUI
 
 enum TileKind: String, Codable, CaseIterable, Identifiable {
-    case sensor, toggle, camera, alarm
+    case sensor, toggle, climate, camera, alarm
     var id: Self { self }
 
     var label: String {
         switch self {
         case .sensor: L("Capteur")
         case .toggle: L("Interrupteur")
+        case .climate: L("Climat")
         case .camera: L("Caméra")
         case .alarm: L("Alarme")
         }
@@ -17,8 +18,19 @@ enum TileKind: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .sensor: L("Capteurs")
         case .toggle: L("Contrôles")
+        case .climate: L("Climat")
         case .camera: L("Caméras")
         case .alarm: L("Alarmes")
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .sensor: "gauge.with.dots.needle.50percent"
+        case .toggle: "switch.2"
+        case .climate: "thermometer.sun.fill"
+        case .camera: "video.fill"
+        case .alarm: "shield.fill"
         }
     }
 
@@ -26,6 +38,7 @@ enum TileKind: String, Codable, CaseIterable, Identifiable {
         switch entityId.split(separator: ".").first {
         case "camera": .camera
         case "alarm_control_panel": .alarm
+        case "climate": .climate
         case "switch", "light", "input_boolean", "fan": .toggle
         default: .sensor
         }
@@ -34,7 +47,7 @@ enum TileKind: String, Codable, CaseIterable, Identifiable {
 
 /// Dashboard sections, in the user's drag-and-drop order.
 enum DashSection: String, CaseIterable, Codable {
-    case sensors, energy, toggles, cameras, security
+    case sensors, energy, toggles, climate, cameras, security
 }
 
 struct Tile: Codable, Identifiable, Hashable {
@@ -199,6 +212,7 @@ extension Tile {
         switch kind {
         case .camera: return "video.fill"
         case .alarm: return Alarm.symbol(e?.state)
+        case .climate: return Climate.symbol(e?.state)
         case .toggle:
             if entityId.hasPrefix("light.") { return "lightbulb.fill" }
             if entityId.hasPrefix("fan.") { return "fan.fill" }
@@ -218,9 +232,59 @@ extension Tile {
 
     func tint(_ e: EntityState?) -> Color {
         if kind == .alarm { return Alarm.color(e?.state) }
+        if kind == .climate { return Climate.color(e?.state, action: e?.attributes["hvac_action"] as? String) }
         if let c = Self.palette.first(where: { $0.name == color }) { return c.color }
         if kind == .toggle { return .yellow }
         return Self.sensorLook[e?.deviceClass ?? ""]?.1 ?? .blue
+    }
+}
+
+/// HA climate entities: state = hvac mode, attributes.hvac_action = what it's doing right now.
+enum Climate {
+    static func symbol(_ mode: String?) -> String {
+        switch mode {
+        case "heat": "flame.fill"
+        case "cool": "snowflake"
+        case "heat_cool", "auto": "arrow.triangle.2.circlepath"
+        case "dry": "humidity.fill"
+        case "fan_only": "fan.fill"
+        default: "power"
+        }
+    }
+
+    static func color(_ mode: String?, action: String?) -> Color {
+        switch action ?? mode {
+        case "heating", "heat": .orange
+        case "cooling", "cool": .blue
+        case "drying", "dry": .cyan
+        case "fan", "fan_only": .teal
+        case "heat_cool", "auto": .green
+        default: .gray  // idle, off, unknown
+        }
+    }
+
+    static func label(_ mode: String?) -> String {
+        switch mode {
+        case "off": L("Arrêt")
+        case "heat": L("Chauffage")
+        case "cool": L("Climatisation")
+        case "heat_cool", "auto": "Auto"
+        case "dry": L("Déshumidification")
+        case "fan_only": L("Ventilation")
+        default: L("Indisponible")
+        }
+    }
+
+    /// What it's doing now (hvac_action), falling back to the mode.
+    static func status(_ mode: String?, action: String?) -> String {
+        switch action {
+        case "heating": L("Chauffe")
+        case "cooling": L("Refroidit")
+        case "idle": L("Au repos")
+        case "drying": L("Déshumidifie")
+        case "fan": L("Ventile")
+        default: label(mode)
+        }
     }
 }
 

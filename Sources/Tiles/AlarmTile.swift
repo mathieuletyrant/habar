@@ -123,6 +123,7 @@ struct AlarmBadge: View {
                 Image(systemName: Alarm.menuSymbol(e?.state))
                     .contentTransition(.symbolEffect(.replace))
                     .symbolEffect(.pulse, isActive: e?.state == "triggered")
+                    .frame(width: Header.icon, height: Header.icon)  // same height as the header's round buttons
                 Text(Alarm.shortLabel(e?.state)).font(.callout.weight(.semibold)).lineLimit(1)
             }
             .foregroundStyle(tile.tint(e))

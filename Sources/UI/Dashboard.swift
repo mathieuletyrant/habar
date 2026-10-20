@@ -40,6 +40,15 @@ struct Dashboard: View {
         case .toggles:
             let t = tiles(.toggle)
             if !t.isEmpty { TileSection(title: L("Contrôles"), icon: "switch.2", drag: s) { grid(t) } }
+        case .climate:
+            let t = tiles(.climate)
+            if !t.isEmpty {
+                TileSection(title: L("Climat"), icon: "thermometer.sun.fill", drag: s) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: min(t.count, 4)), spacing: 8) {
+                        ForEach(t) { ClimateTile(tile: $0) }
+                    }
+                }
+            }
         case .cameras:
             let t = tiles(.camera)
             if !t.isEmpty { TileSection(title: L("Caméras"), icon: "video.fill", drag: s) { CameraGrid(tiles: t) } }
@@ -75,6 +84,9 @@ struct Header: View {
     @Environment(HAClient.self) private var ha
     @Binding var page: Page
 
+    /// One box for every header symbol: their natural sizes differ, which made the round buttons uneven.
+    static let icon: CGFloat = 18
+
     private var title: String {
         switch page {
         case .dashboard: ha.homeName.isEmpty ? L("Maison") : ha.homeName
@@ -107,6 +119,7 @@ struct Header: View {
                             Image(systemName: page == .inbox ? "checkmark" : (count > 0 ? "bell.badge.fill" : "bell"))
                                 .symbolRenderingMode(count > 0 ? .multicolor : .monochrome)
                                 .contentTransition(.symbolEffect(.replace))
+                                .frame(width: Header.icon, height: Header.icon)
                             if count > 0 {
                                 Text("\(count)").font(.callout.weight(.semibold)).monospacedDigit()
                             }
@@ -123,6 +136,7 @@ struct Header: View {
                     } label: {
                         Image(systemName: page == .picker ? "chevron.left" : page == .settings ? "checkmark" : "slider.horizontal.3")
                             .contentTransition(.symbolEffect(.replace))
+                            .frame(width: Header.icon, height: Header.icon)
                     }
                     .help(L("Réglages"))
                 }

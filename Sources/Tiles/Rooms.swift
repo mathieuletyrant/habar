@@ -4,8 +4,9 @@ import SwiftUI
 /// A stacked bar on top shows where the power goes; each room's dot matches its segment. Click a room for its devices.
 struct RoomsView: View {
     let areas: [HAClient.Room]
-    let other: Double?  // house total not covered by any room; nil without a house total sensor
+    let other: Double?  // house total not covered by any room: a gray segment in the bar (a row would pop in and out)
     @State private var expanded: String?
+    @State private var hovered: String?  // room under the pointer in the stacked bar
 
 
     var body: some View {
@@ -21,23 +22,26 @@ struct RoomsView: View {
         }
 
         VStack(alignment: .leading, spacing: 14) {
-            // where the power goes: one segment per room, same color as the room's dot
+            // where the power goes: one segment per room, same color as its dot.
+            // Hovering a segment names it (tooltip) and fades the other rooms' rows.
             GeometryReader { g in
                 let gap: CGFloat = 2
-                let parts = indexed.filter { $0.element.watts >= 1 }.map { (color($0.offset), $0.element.watts) }
-                    + ((other ?? 0) >= 1 ? [(Color.gray.opacity(0.5), other ?? 0)] : [])
-                let usable = g.size.width - gap * CGFloat(parts.count - 1)
-                let widths = parts.map { usable * $0.1 / total }
-                ZStack(alignment: .leading) {
+                let parts = indexed.filter { $0.element.watts >= 1 }.map { (color($0.offset), $0.element.watts, $0.element.id) }
+                    + ((other ?? 0) >= 1 ? [(Color.gray.opacity(0.5), other ?? 0, L("Autres"))] : [])
+                let usable = g.size.width - gap * CGFloat(max(parts.count - 1, 0))
+                HStack(spacing: gap) {  // real frames, not offsets: hover and tooltips need them
                     ForEach(parts.indices, id: \.self) { i in
                         Capsule().fill(parts[i].0.gradient)
-                            .frame(width: max(widths[i], 3))
-                            .offset(x: widths[..<i].reduce(0, +) + gap * CGFloat(i))
+                            .frame(width: max(usable * parts[i].1 / total, 3), height: hovered == parts[i].2 ? 10 : 8)
+                            .contentShape(.rect)
+                            .onHover { inside in hovered = inside ? parts[i].2 : (hovered == parts[i].2 ? nil : hovered) }
+                            .help("\(parts[i].2) · \(EntityState.formatWatts(parts[i].1))")
                     }
                 }
-                .frame(width: g.size.width, alignment: .leading)
+                .frame(width: g.size.width, height: g.size.height, alignment: .leading)
             }
-            .frame(height: 8)
+            .frame(height: 10)
+            .animation(.snappy(duration: 0.2), value: hovered)
 
             VStack(alignment: .leading, spacing: 9) {
                 columns(Color.clear, Image(systemName: "thermometer.medium"), Image(systemName: "humidity.fill"),
@@ -55,6 +59,8 @@ struct RoomsView: View {
                     }
                     ForEach(floors[f].rooms, id: \.1.id) { i, room in
                         roomRow(room, color: color(i))
+                            .opacity(hovered == nil || hovered == room.id ? 1 : 0.35)
+                            .animation(.snappy(duration: 0.2), value: hovered)
                         if expanded == room.id {
                             ForEach(room.items) { item in
                                 columns(Text(item.name).lineLimit(1).padding(.leading, 14), Text(""), Text(""),
@@ -67,13 +73,6 @@ struct RoomsView: View {
                     }
                 }
 
-                if let other, other >= 1 {  // only when the house total and the rooms really differ
-                    columns(Text(L("Autres")).padding(.leading, 14), Text(""), Text(""),
-                            Text(EntityState.formatWatts(other)).contentTransition(.numericText()), Color.clear)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .help(L("Total maison moins la somme des pièces"))
-                }
             }
             .monospacedDigit()
         }
