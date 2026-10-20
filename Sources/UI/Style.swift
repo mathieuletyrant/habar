@@ -38,7 +38,7 @@ struct TileSection<Content: View>: View {
 }
 
 /// ScrollView that hugs its content and only scrolls past `maxHeight`
-/// (a plain ScrollView has no intrinsic height inside a MenuBarExtra window).
+/// (a plain ScrollView has no intrinsic height inside the popover).
 /// Last measured content height per scroll area: the popover is rebuilt on every open,
 /// and starting from 0 would make it visibly grow on the first frame.
 private var lastHeights: [CGFloat: CGFloat] = [:]

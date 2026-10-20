@@ -77,11 +77,11 @@ struct Tile: Codable, Identifiable, Hashable {
         color = c.value(.color, "")
         inMenuBar = c.value(.inMenuBar, false)
         armService = c.value(.armService, "alarm_arm_away")
-        inDashboard = c.value(.inDashboard, !c.value(.hidden, false))  // "hidden" was the pre-1.1 name
+        inDashboard = c.value(.inDashboard, true)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, entityId, kind, name, icon, color, inMenuBar, armService, inDashboard, hidden
+        case id, entityId, kind, name, icon, color, inMenuBar, armService, inDashboard
     }
 
     func encode(to encoder: Encoder) throws {

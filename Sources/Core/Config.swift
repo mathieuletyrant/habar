@@ -35,7 +35,7 @@ struct Config: Codable {
     }
 
     static func load() -> Config {
-        guard let data = try? Data(contentsOf: file) else { return migrateFromDefaults() }
+        guard let data = try? Data(contentsOf: file) else { return Config() }
         do {
             return try JSONDecoder().decode(Config.self, from: data)
         } catch {
@@ -57,23 +57,6 @@ struct Config: Codable {
         } catch {
             log.error("config.json not saved: \(error, privacy: .public)")
         }
-    }
-
-    // ponytail: one-time import of the pre-1.1 UserDefaults settings; delete once every Mac has a config.json
-    private static func migrateFromDefaults() -> Config {
-        let ud = UserDefaults.standard
-        var c = Config()
-        c.tiles = ud.data(forKey: "tiles").flatMap { try? JSONDecoder().decode([Lenient<Tile>].self, from: $0) }?
-            .compactMap(\.value) ?? []
-        let order = (ud.stringArray(forKey: "sectionOrder") ?? []).compactMap(DashSection.init)
-        c.sectionOrder = order + DashSection.allCases.filter { !order.contains($0) }
-        c.appearance = ud.string(forKey: "appearance").flatMap(Appearance.init) ?? .auto
-        c.language = ud.string(forKey: "language").flatMap(Language.init)
-        c.showEnergy = ud.object(forKey: "showEnergy") as? Bool ?? true
-        c.menuShowHouse = ud.object(forKey: "menuShowHouse") as? Bool ?? true
-        c.menuShowBadge = ud.object(forKey: "menuShowBadge") as? Bool ?? true
-        if ud.string(forKey: "url") != nil { c.save() }
-        return c
     }
 }
 

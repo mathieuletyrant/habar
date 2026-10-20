@@ -9,7 +9,7 @@ import Testing
       "tiles": [
         { "entityId": "camera.door" },
         { "kind": "sensor" },
-        { "entityId": "sensor.power", "hidden": true }
+        { "entityId": "sensor.power", "inDashboard": false }
       ]
     }
     """
@@ -18,7 +18,7 @@ import Testing
     #expect(c.sectionOrder.first == .cameras && c.sectionOrder.count == DashSection.allCases.count)
     #expect(c.tiles.count == 2)                // the tile without entityId is dropped, not the whole list
     #expect(c.tiles[0].kind == .camera)        // guessed from the domain
-    #expect(c.tiles[1].inDashboard == false)   // legacy "hidden" key
+    #expect(c.tiles[1].inDashboard == false)
 }
 
 @Test func slugMatchesHomeAssistant() {
