@@ -27,6 +27,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         item.button?.target = self
         item.button?.action = #selector(toggle)
         trackIcon()
+        trackAppearance()
+    }
+
+    /// NSPopover takes the menu bar's appearance, not the app's: apply the Theme setting to it directly.
+    private func trackAppearance() {
+        withObservationTracking {
+            _ = ha.appearance
+        } onChange: { [weak self] in
+            // onChange fires before the new value lands; by the next main-actor turn NSApp.appearance is updated
+            Task { @MainActor in
+                self?.popover.appearance = NSApp.effectiveAppearance
+                self?.trackAppearance()
+            }
+        }
     }
 
     /// Re-renders the status item image whenever a value it shows changes.
@@ -47,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func show() {
         guard !popover.isShown, let button = item.button else { return }
         NSApp.activate()
+        popover.appearance = NSApp.effectiveAppearance  // "Auto" follows the system as it is right now
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
     }
