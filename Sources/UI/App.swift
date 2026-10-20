@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNU
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let popover = NSPopover()
     private var closedAt = Date.distantPast
+    private var linkOpenedAt = Date.distantPast
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         popover.behavior = .transient
@@ -90,7 +91,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNU
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
-        show()
+        // a habar:// link also activates the app: wait a beat, and don't open the popover if one came in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [self] in
+            if Date().timeIntervalSince(linkOpenedAt) > 1 { show() }
+        }
+    }
+
+    /// habar:// links from launcher quicklinks: act without opening the popover.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        linkOpenedAt = Date()
+        for url in urls { Task { await ha.open(url) } }
     }
 
     func popoverDidShow(_ notification: Notification) {

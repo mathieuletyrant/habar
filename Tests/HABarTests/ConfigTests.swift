@@ -26,3 +26,13 @@ import Testing
     #expect(HAClient.slug("iPhone de Julie") == "iphone_de_julie")
     #expect(HAClient.slug("Salle à manger") == "salle_a_manger")
 }
+
+@Test func habarLinks() {
+    #expect(HAClient.linkAction(URL(string: "habar://toggle/light.desk")!)
+            == .init(domain: "homeassistant", service: "toggle", entityId: "light.desk", data: [:]))
+    #expect(HAClient.linkAction(URL(string: "habar://call/light/turn_on?entity_id=light.desk&brightness=80")!)
+            == .init(domain: "light", service: "turn_on", entityId: "light.desk", data: ["brightness": "80"]))
+    #expect(HAClient.linkAction(URL(string: "habar://call/scene/turn_on?entity_id=scene.evening")!)?.entityId == "scene.evening")
+    #expect(HAClient.linkAction(URL(string: "habar://nope")!) == nil)
+    #expect(HAClient.linkAction(URL(string: "https://toggle/light.desk")!) == nil)
+}

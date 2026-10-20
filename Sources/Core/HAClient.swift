@@ -287,6 +287,42 @@ final class HAClient {
         try? await call("persistent_notification", "dismiss", nil, ["notification_id": n.id])
     }
 
+    // MARK: - habar:// links (launcher quicklinks)
+
+    struct LinkAction: Equatable {
+        let domain: String, service: String, entityId: String?
+        let data: [String: String]
+    }
+
+    /// habar://toggle/<entity_id>  ·  habar://call/<domain>/<service>?entity_id=…&key=value
+    nonisolated static func linkAction(_ url: URL) -> LinkAction? {
+        guard url.scheme == "habar" else { return nil }
+        let parts = url.pathComponents.filter { $0 != "/" }
+        var query: [String: String] = [:]
+        URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.forEach { query[$0.name] = $0.value ?? "" }
+        switch (url.host, parts.count) {
+        case ("toggle", 1): return LinkAction(domain: "homeassistant", service: "toggle", entityId: parts[0], data: [:])
+        case ("call", 2):
+            let entity = query.removeValue(forKey: "entity_id")
+            return LinkAction(domain: parts[0], service: parts[1], entityId: entity, data: query)
+        default: return nil
+        }
+    }
+
+    func open(_ url: URL) async {
+        guard let action = Self.linkAction(url) else { log.error("unknown link \(url, privacy: .public)"); return }
+        // launched by the link: give the WebSocket a moment to connect
+        for _ in 0..<50 where status != .connected { try? await Task.sleep(for: .milliseconds(200)) }
+        // numbers stay numbers (brightness=80), the rest are strings
+        let data = action.data.mapValues { v -> Any in
+            if let i = Int(v) { return i }
+            if let d = Double(v) { return d }
+            return v
+        }
+        do { try await call(action.domain, action.service, action.entityId, data) }
+        catch { log.error("link \(url, privacy: .public): \(error.localizedDescription, privacy: .public)") }
+    }
+
     // MARK: - Mac notifications
 
     /// Mirrors notify.* calls made by HA automations (e.g. to the phone) as macOS notifications: automations stay as they are.
