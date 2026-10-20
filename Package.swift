@@ -4,5 +4,8 @@ import PackageDescription
 let package = Package(
     name: "HABar",
     platforms: [.macOS(.v26)],
-    targets: [.executableTarget(name: "HABar", path: "Sources", swiftSettings: [.swiftLanguageMode(.v5)])]
+    targets: [
+        .executableTarget(name: "HABar", path: "Sources", swiftSettings: [.swiftLanguageMode(.v5)]),
+        .testTarget(name: "HABarTests", dependencies: ["HABar"], swiftSettings: [.swiftLanguageMode(.v5)]),
+    ]
 )

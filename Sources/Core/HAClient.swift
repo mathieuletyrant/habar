@@ -14,37 +14,21 @@ private let log = Logger(subsystem: "com.mathieuletyrant.habar", category: "ha")
 final class HAClient {
     enum Status: Equatable { case offline, connecting, connected, error(String) }
 
-    var url = UserDefaults.standard.string(forKey: "url") ?? "" {
-        didSet { UserDefaults.standard.set(url, forKey: "url") }
+    // Persisted settings: each change rewrites ~/.config/habar/config.json (see Config).
+    private static let saved = Config.load()
+    var url = saved.url { didSet { save() } }
+    var tiles = saved.tiles { didSet { save(); resubscribe() } }
+    var sectionOrder = saved.sectionOrder { didSet { save() } }
+    var showEnergy = saved.showEnergy { didSet { save(); resubscribe() } }
+    var menuShowHouse = saved.menuShowHouse { didSet { save() } }
+    var menuShowBadge = saved.menuShowBadge { didSet { save() } }
+    var appearance = saved.appearance {
+        didSet { save(); NSApp.appearance = appearance.ns }
     }
     var token = Keychain.get() {
         didSet { Keychain.set(token) }
     }
-    var tiles: [Tile] = HAClient.loadTiles() {
-        didSet { saveTiles(); resubscribe() }
-    }
-    var appearance = Appearance(rawValue: UserDefaults.standard.string(forKey: "appearance") ?? "") ?? .auto {
-        didSet {
-            UserDefaults.standard.set(appearance.rawValue, forKey: "appearance")
-            NSApp.appearance = appearance.ns
-        }
-    }
     var homeName = ""  // HA's location name; the header falls back to L("Maison")
-    var sectionOrder: [DashSection] = {
-        let saved = (UserDefaults.standard.stringArray(forKey: "sectionOrder") ?? []).compactMap(DashSection.init)
-        return saved + DashSection.allCases.filter { !saved.contains($0) }  // sections added later go last
-    }() {
-        didSet { UserDefaults.standard.set(sectionOrder.map(\.rawValue), forKey: "sectionOrder") }
-    }
-    var showEnergy = UserDefaults.standard.object(forKey: "showEnergy") as? Bool ?? true {
-        didSet { UserDefaults.standard.set(showEnergy, forKey: "showEnergy"); resubscribe() }
-    }
-    var menuShowHouse = UserDefaults.standard.object(forKey: "menuShowHouse") as? Bool ?? true {
-        didSet { UserDefaults.standard.set(menuShowHouse, forKey: "menuShowHouse") }
-    }
-    var menuShowBadge = UserDefaults.standard.object(forKey: "menuShowBadge") as? Bool ?? true {
-        didSet { UserDefaults.standard.set(menuShowBadge, forKey: "menuShowBadge") }
-    }
 
     var states: [String: EntityState] = [:]
     var cameraImages: [String: NSImage] = [:]
@@ -72,6 +56,8 @@ final class HAClient {
 
     init() {
         NSApplication.shared.appearance = appearance.ns
+        Lang.shared.current = Self.saved.language ?? Lang.system
+        Lang.shared.onChange = { [weak self] in self?.save() }
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
         ) { [weak self] _ in
@@ -437,16 +423,16 @@ final class HAClient {
         }
     }
 
-    /// Decodes tiles one by one so a tile from an older version (e.g. a removed kind) can't wipe the others.
-    private static func loadTiles() -> [Tile] {
-        guard let data = UserDefaults.standard.data(forKey: "tiles"),
-              let raw = try? JSONSerialization.jsonObject(with: data) as? [Any] else { return [] }
-        return raw.compactMap { item in
-            (try? JSONSerialization.data(withJSONObject: item)).flatMap { try? JSONDecoder().decode(Tile.self, from: $0) }
-        }
-    }
-
-    private func saveTiles() {
-        UserDefaults.standard.set(try? JSONEncoder().encode(tiles), forKey: "tiles")
+    private func save() {
+        var c = Config()
+        c.url = url
+        c.tiles = tiles
+        c.sectionOrder = sectionOrder
+        c.appearance = appearance
+        c.language = Lang.shared.current == Lang.system ? nil : Lang.shared.current
+        c.showEnergy = showEnergy
+        c.menuShowHouse = menuShowHouse
+        c.menuShowBadge = menuShowBadge
+        c.save()
     }
 }

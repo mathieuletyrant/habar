@@ -39,7 +39,8 @@ cd habar
 `./build.sh` alone builds `build/HABar.app` without installing it.
 
 To publish a new version, commit your changes then run `./build.sh release` (patch bump) or `./build.sh release 1.2.0`.
-It tags, publishes the GitHub release and updates the Homebrew cask, so users get it with `brew update && brew upgrade`.
+It tags and pushes; GitHub Actions runs the tests, publishes the release and updates the Homebrew cask, so users get it with `brew update && brew upgrade`.
+The workflow needs a `TAP_TOKEN` secret: a fine-grained token with *Contents: read and write* on `homebrew-tap`.
 
 ## Setup
 
@@ -51,6 +52,25 @@ It tags, publishes the GitHub release and updates the Homebrew cask, so users ge
 The token is stored in the macOS Keychain. Because the app is signed locally, macOS asks for Keychain access after each rebuild: choose **Always Allow**.
 
 **Tip**: launching HABar from Spotlight or Raycast opens the popover.
+
+## Configuration file
+
+Settings live in `~/.config/habar/config.json` (pretty-printed, so you can keep it in your dotfiles; a symlink is preserved).
+Every key is optional; a tile only needs an `entityId` (its kind is guessed from the domain):
+
+```json
+{
+  "url": "homeassistant.local:8123",
+  "language": "en",
+  "tiles": [
+    { "entityId": "alarm_control_panel.home", "inMenuBar": true },
+    { "entityId": "sensor.house_power", "inMenuBar": true, "inDashboard": false },
+    { "entityId": "camera.front_door" }
+  ]
+}
+```
+
+The token is never written there: it stays in the Keychain. The file is read at launch.
 
 ## Energy by room
 

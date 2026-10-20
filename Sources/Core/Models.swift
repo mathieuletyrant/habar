@@ -33,7 +33,7 @@ enum TileKind: String, Codable, CaseIterable, Identifiable {
 }
 
 /// Dashboard sections, in the user's drag-and-drop order.
-enum DashSection: String, CaseIterable {
+enum DashSection: String, CaseIterable, Codable {
     case sensors, energy, toggles, cameras, security
 }
 
@@ -46,12 +46,42 @@ struct Tile: Codable, Identifiable, Hashable {
     var color = ""  // empty = auto
     var inMenuBar = false
     var armService = "alarm_arm_away"
-    var hidden: Bool?  // optional so tiles saved before this field still decode
+    var inDashboard = true  // false = menu bar only (e.g. a whole-house total you don't need twice)
 
-    /// false = menu bar only (e.g. a whole-house total you don't need twice).
-    var inDashboard: Bool {
-        get { hidden != true }
-        set { hidden = newValue ? nil : true }
+    init(entityId: String, kind: TileKind) {
+        self.entityId = entityId
+        self.kind = kind
+    }
+
+    /// Only entityId is required; kind is guessed from the domain when missing (handy in a hand-written config).
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        entityId = try c.decode(String.self, forKey: .entityId)
+        kind = c.value(.kind, TileKind.guess(entityId))
+        id = c.value(.id, UUID())
+        name = c.value(.name, "")
+        icon = c.value(.icon, "")
+        color = c.value(.color, "")
+        inMenuBar = c.value(.inMenuBar, false)
+        armService = c.value(.armService, "alarm_arm_away")
+        inDashboard = c.value(.inDashboard, !c.value(.hidden, false))  // "hidden" was the pre-1.1 name
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, entityId, kind, name, icon, color, inMenuBar, armService, inDashboard, hidden
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(entityId, forKey: .entityId)
+        try c.encode(kind, forKey: .kind)
+        try c.encode(name, forKey: .name)
+        try c.encode(icon, forKey: .icon)
+        try c.encode(color, forKey: .color)
+        try c.encode(inMenuBar, forKey: .inMenuBar)
+        try c.encode(armService, forKey: .armService)
+        try c.encode(inDashboard, forKey: .inDashboard)
     }
 }
 
@@ -88,7 +118,7 @@ struct EntityState {
     }
 }
 
-enum Appearance: String, CaseIterable, Identifiable {
+enum Appearance: String, CaseIterable, Identifiable, Codable {
     case auto, light, dark
     var id: Self { self }
 

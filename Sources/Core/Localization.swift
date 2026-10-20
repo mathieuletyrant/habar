@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-enum Language: String, CaseIterable, Identifiable {
+enum Language: String, CaseIterable, Identifiable, Codable {
     case fr, en
     var id: Self { self }
     var label: String { self == .fr ? "Français" : "English" }
@@ -11,10 +11,11 @@ enum Language: String, CaseIterable, Identifiable {
 /// Observed, so every view reading a string through L() re-renders when the language changes.
 @Observable final class Lang {
     static let shared = Lang()
-    var current = Language(rawValue: UserDefaults.standard.string(forKey: "language") ?? "")
-        ?? (Locale.current.language.languageCode == .french ? .fr : .en) {
-        didSet { UserDefaults.standard.set(current.rawValue, forKey: "language") }
+    static let system: Language = Locale.current.language.languageCode == .french ? .fr : .en
+    var current = system {
+        didSet { onChange?() }
     }
+    @ObservationIgnored var onChange: (() -> Void)?  // HAClient saves the config
 }
 
 /// UI strings are written in French in code; L() swaps in English when selected (falls back to French).

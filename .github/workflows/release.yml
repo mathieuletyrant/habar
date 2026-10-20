@@ -1,0 +1,20 @@
+name: Release
+
+# `./build.sh release` pushes a vX.Y.Z tag; this builds it, publishes the GitHub release and bumps the Homebrew cask.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v5
+      - run: swift test
+      - run: ./build.sh publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
