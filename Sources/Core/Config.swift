@@ -4,9 +4,8 @@ import os
 private let log = Logger(subsystem: "com.mathieuletyrant.habar", category: "config")
 
 /// Everything the user configures, in ~/.config/habar/config.json: readable, hand-editable, dotfiles-friendly.
-/// The token is not in here: it stays in the Keychain.
+/// Machine-specific connection settings are not in here: the URL stays in UserDefaults, the token in the Keychain.
 struct Config: Codable {
-    var url = ""
     var tiles: [Tile] = []
     var sectionOrder = DashSection.allCases
     var appearance = Appearance.auto
@@ -23,7 +22,6 @@ struct Config: Codable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = Config()
-        url = c.value(.url, d.url)
         tiles = c.value(.tiles, [Lenient<Tile>]()).compactMap(\.value)  // one bad tile doesn't drop the rest
         let order = c.value(.sectionOrder, [Lenient<DashSection>]()).compactMap(\.value)
         sectionOrder = order + DashSection.allCases.filter { !order.contains($0) }  // sections added later go last
@@ -63,7 +61,6 @@ struct Config: Codable {
     private static func migrateFromDefaults() -> Config {
         let ud = UserDefaults.standard
         var c = Config()
-        c.url = ud.string(forKey: "url") ?? ""
         c.tiles = ud.data(forKey: "tiles").flatMap { try? JSONDecoder().decode([Lenient<Tile>].self, from: $0) }?
             .compactMap(\.value) ?? []
         let order = (ud.stringArray(forKey: "sectionOrder") ?? []).compactMap(DashSection.init)

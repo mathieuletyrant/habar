@@ -16,7 +16,9 @@ final class HAClient {
 
     // Persisted settings: each change rewrites ~/.config/habar/config.json (see Config).
     private static let saved = Config.load()
-    var url = saved.url { didSet { save() } }
+    var url = UserDefaults.standard.string(forKey: "url") ?? "" {  // per Mac, kept out of config.json
+        didSet { UserDefaults.standard.set(url, forKey: "url") }
+    }
     var tiles = saved.tiles { didSet { save(); resubscribe() } }
     var sectionOrder = saved.sectionOrder { didSet { save() } }
     var showEnergy = saved.showEnergy { didSet { save(); resubscribe() } }
@@ -425,7 +427,6 @@ final class HAClient {
 
     private func save() {
         var c = Config()
-        c.url = url
         c.tiles = tiles
         c.sectionOrder = sectionOrder
         c.appearance = appearance

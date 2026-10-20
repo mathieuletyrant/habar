@@ -71,7 +71,6 @@ Every key is optional; a tile only needs an `entityId` (its kind is guessed from
 
 ```json
 {
-  "url": "homeassistant.local:8123",
   "language": "en",
   "tiles": [
     { "entityId": "alarm_control_panel.home", "inMenuBar": true },
@@ -81,7 +80,7 @@ Every key is optional; a tile only needs an `entityId` (its kind is guessed from
 }
 ```
 
-The token is never written there: it stays in the Keychain. The file is read at launch.
+The server URL and token are not in there: they're per Mac (UserDefaults and Keychain), entered once in Settings. The file is read at launch.
 
 ## Energy by room
 
