@@ -2,6 +2,8 @@
 
 A native macOS menu bar app for [Home Assistant](https://www.home-assistant.io). Fast, live, and built with SwiftUI and Liquid Glass.
 
+<p align="center"><img src="docs/screenshot.png" width="400" alt="HABar popover: alarm, sensors, energy by room, cameras"></p>
+
 - **Live**: one persistent WebSocket (`subscribe_entities`), no polling. The popover opens already up to date.
 - **Sensors and toggles**: Control Center–style tiles. Tap a light, switch or fan to toggle it.
 - **Cameras**: snapshot grid, click to enlarge. Refreshed every 2 s while open, every 60 s in the background, and the last frame is cached on disk so reopening is instant.
