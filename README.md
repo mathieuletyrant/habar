@@ -38,8 +38,8 @@ cd habar
 
 `./build.sh` alone builds `build/HABar.app` without installing it.
 
-To publish a new version: bump `CFBundleShortVersionString` in `Info.plist`, then `./build.sh release`.
-The cask always fetches the latest release, so the tap needs no change; upgrade with `brew upgrade --cask --greedy habar`.
+To publish a new version, commit your changes then run `./build.sh release` (patch bump) or `./build.sh release 1.2.0`.
+It tags, publishes the GitHub release and updates the Homebrew cask, so users get it with `brew update && brew upgrade`.
 
 ## Setup
 
