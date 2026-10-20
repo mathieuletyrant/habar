@@ -23,10 +23,21 @@ A native macOS menu bar app for [Home Assistant](https://www.home-assistant.io).
 With Homebrew (Apple Silicon):
 
 ```sh
-brew install --cask mathieuletyrant/tap/habar
+brew tap mathieuletyrant/tap
+brew trust --tap mathieuletyrant/tap   # Homebrew 7+ only loads third-party taps you trust
+brew install --cask habar
 ```
 
-The app isn't notarized (no Apple Developer account), so the cask removes the quarantine flag after install.
+Or in a `Brewfile`:
+
+```ruby
+tap "mathieuletyrant/tap"
+cask "mathieuletyrant/tap/habar"
+```
+
+Updates: `brew update && brew upgrade --cask habar` (or a plain `brew upgrade`).
+
+The app isn't notarized (no Apple Developer account), so the cask removes the quarantine flag during install.
 
 From source:
 
