@@ -34,7 +34,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNU
         -> UNNotificationPresentationOptions { [.banner, .sound, .list] }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        await MainActor.run { show() }
+        let link = (response.notification.request.content.userInfo["url"] as? String).flatMap(URL.init(string:))
+        await MainActor.run {
+            if let link { NSWorkspace.shared.open(link) } else { show() }  // same tap target as on the phone
+        }
     }
 
     /// NSPopover takes the menu bar's appearance, not the app's: apply the Theme setting to it directly.

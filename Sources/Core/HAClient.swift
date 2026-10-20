@@ -156,6 +156,9 @@ final class HAClient {
             let cid = takeId()
             callSubId = cid
             send(["id": cid, "type": "subscribe_events", "event_type": "call_service"])
+            UNUserNotificationCenter.current().getNotificationSettings { s in
+                log.notice("connected; notifications authorization: \(s.authorizationStatus.rawValue), alerts: \(s.alertSetting.rawValue)")
+            }
             Task {
                 if let c = try? await request(["type": "get_config"]) as? [String: Any],
                    let name = c["location_name"] as? String { homeName = name }
@@ -285,24 +288,41 @@ final class HAClient {
     /// Mirrors notify.* calls made by HA automations (e.g. to the phone) as macOS notifications: automations stay as they are.
     private func mirror(_ ev: [String: Any]) {
         guard let d = ev["data"] as? [String: Any], d["domain"] as? String == "notify",
-              let service = d["service"] as? String, mirrorNotify.contains(service) else { return }
+              let service = d["service"] as? String else { return }
+        log.notice("notify.\(service, privacy: .public) called, mirrored: \(self.mirrorNotify.contains(service))")
+        guard mirrorNotify.contains(service) else { return }
         let data = d["service_data"] as? [String: Any] ?? [:]
+        // the companion app's tap target (data.url): absolute, or a path in the HA frontend
+        let link = ((data["data"] as? [String: Any])?["url"] as? String).flatMap { s in
+            URL(string: s).flatMap { $0.scheme == nil ? baseURL?.appending(path: s) : $0 }
+        }
         postNotification(title: data["title"] as? String ?? (homeName.isEmpty ? "Home Assistant" : homeName),
-                         body: data["message"] as? String ?? "")
+                         body: data["message"] as? String ?? "", link: link)
     }
 
-    func postNotification(title: String, body: String) {
+    func postNotification(title: String, body: String, link: URL? = nil) {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = .default
-        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+        if let link { content.userInfo["url"] = link.absoluteString }  // clicking opens it (see AppDelegate)
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)) { error in
+            if let error { log.error("notification not posted: \(error.localizedDescription, privacy: .public)") }
+        }
     }
 
     func requestNotificationPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
             if !granted { log.error("notifications not allowed: \(error?.localizedDescription ?? "denied", privacy: .public)") }
+            Task { @MainActor in await self.refreshNotificationStatus() }
         }
+    }
+
+    /// True when macOS blocks HABar's notifications: Settings shows a warning, mirroring would silently do nothing.
+    var notificationsBlocked = false
+
+    func refreshNotificationStatus() async {
+        notificationsBlocked = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus == .denied
     }
 
     struct NotifyService: Identifiable { let id: String; let name: String; let icon: String }

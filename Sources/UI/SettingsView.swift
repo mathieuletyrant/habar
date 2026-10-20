@@ -70,6 +70,18 @@ struct SettingsView: View {
                 }
 
                 section(L("Notifications sur le Mac")) {
+                    if ha.notificationsBlocked {
+                        SettingsGroup {
+                            SettingsRow(icon: "exclamationmark.triangle.fill", color: .red,
+                                        title: L("Notifications bloquées par macOS"), subtitle: L("Réglages Système → Notifications → HABar")) {
+                                Button(L("Ouvrir")) {
+                                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")!)
+                                }
+                                .buttonStyle(.glass)
+                                .controlSize(.small)
+                            }
+                        }
+                    }
                     SettingsGroup {
                         ForEach(ha.notifyServices) { service in
                             SettingsRow(icon: service.icon, color: service.icon == "bell.fill" ? .gray : .blue,
@@ -88,7 +100,10 @@ struct SettingsView: View {
                             .controlSize(.small)
                         }
                     }
-                    .task { await ha.loadNotifyServices() }
+                    .task {
+                        await ha.loadNotifyServices()
+                        await ha.refreshNotificationStatus()
+                    }
                     Text(L("Les notifications envoyées par tes automatisations aux services cochés s'affichent aussi sur ce Mac."))
                         .font(.caption)
                         .foregroundStyle(.secondary)
