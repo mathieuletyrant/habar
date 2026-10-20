@@ -1,25 +1,25 @@
-# HABar
+# 🏠 HABar
 
 A native macOS menu bar app for [Home Assistant](https://www.home-assistant.io). Fast, live, and built with SwiftUI and Liquid Glass.
 
 <p align="center"><img src="docs/screenshot.png" width="400" alt="HABar popover: alarm, sensors, energy by room, cameras"></p>
 
-- **Live**: one persistent WebSocket (`subscribe_entities`), no polling. The popover opens already up to date.
-- **Sensors and toggles**: Control Center–style tiles. Tap a light, switch or fan to toggle it.
-- **Cameras**: snapshot grid, click to enlarge. Refreshed every 2 s while open, every 60 s in the background, and the last frame is cached on disk so reopening is instant.
-- **Alarm**: arm without a code, disarm with your PIN (asked only when HA requires one).
-- **Energy by room**: live power per floor and room, from your HA Energy dashboard (same source and hierarchy as HA's power flow card).
-- **Notifications and updates**: HA persistent notifications and available updates, with release notes and one-click install.
-- **Mac notifications**: notifications your automations already send to your phone also show up on the Mac, without changing them.
-- **Menu bar**: pick what shows next to the icon, e.g. alarm lock state and total power.
+- ⚡ **Live**: one persistent WebSocket (`subscribe_entities`), no polling. The popover opens already up to date.
+- 🌡️ **Sensors and toggles**: Control Center–style tiles. Tap a light, switch or fan to toggle it.
+- 📹 **Cameras**: snapshot grid, click to enlarge. Refreshed every 2 s while open, every 60 s in the background, and the last frame is cached on disk so reopening is instant.
+- 🛡️ **Alarm**: arm without a code, disarm with your PIN (asked only when HA requires one).
+- 🔌 **Energy by room**: live power per floor and room, from your HA Energy dashboard (same source and hierarchy as HA's power flow card).
+- 🔔 **Notifications and updates**: HA persistent notifications and available updates, with release notes and one-click install.
+- 💬 **Mac notifications**: notifications your automations already send to your phone also show up on the Mac, without changing them.
+- 📊 **Menu bar**: pick what shows next to the icon, e.g. alarm lock state and total power.
 - Drag and drop dashboard sections, light/dark/auto theme, French or English.
 
-## Requirements
+## 📋 Requirements
 
 - macOS 26 or later
 - Xcode 26 or later, to build (the Command Line Tools alone lack the SwiftUI macros)
 
-## Install
+## 🚀 Install
 
 With Homebrew (Apple Silicon):
 
@@ -54,7 +54,7 @@ To publish a new version, commit your changes then run `./build.sh release` (pat
 It tags and pushes; GitHub Actions runs the tests, publishes the release and updates the Homebrew cask, so users get it with `brew update && brew upgrade`.
 The workflow needs a `TAP_TOKEN` secret: a fine-grained token with *Contents: read and write* on `homebrew-tap`.
 
-## Setup
+## ⚙️ Setup
 
 1. In Home Assistant, open your profile → **Security** → **Long-lived access tokens** → create one.
 2. Click the house icon in the menu bar. Settings open on first launch.
@@ -65,7 +65,7 @@ The token is stored in the macOS Keychain. Because the app is signed locally, ma
 
 **Tip**: launching HABar from Spotlight or Raycast opens the popover.
 
-## Configuration file
+## 🗂️ Configuration file
 
 Settings live in `~/.config/habar/config.json` (pretty-printed, so you can keep it in your dotfiles; a symlink is preserved).
 Every key is optional; a tile only needs an `entityId` (its kind is guessed from the domain):
@@ -83,7 +83,7 @@ Every key is optional; a tile only needs an `entityId` (its kind is guessed from
 
 The server URL and token are not in there: they're per Mac (UserDefaults and Keychain), entered once in Settings. The file is read at launch.
 
-## Mac notifications
+## 💬 Mac notifications
 
 When an automation calls a `notify.*` service (e.g. `notify.mobile_app_my_iphone`), HABar can mirror it as a macOS notification: same title and message, and clicking it opens the notification's `data.url`, like a tap on the phone. Your automations stay unchanged.
 
@@ -95,14 +95,14 @@ Pick the services to mirror in **Settings → Notifications on this Mac** (phone
 
 It relies on HA's `call_service` events, so the token must belong to an admin user, and HABar has to be running. If nothing shows up, check that macOS allows HABar's notifications (Settings shows a warning when it doesn't).
 
-## Energy by room
+## 🔌 Energy by room
 
 HABar reads the individual devices of your HA **Energy dashboard** (with their power sensor) and groups them by area and floor. A device "included in" another only counts what its children don't.
 If you show a whole-house power sensor as a tile, the gap between it and the rooms appears as **Other**.
 
 Without Energy dashboard devices, HABar falls back to every power sensor.
 
-## Project layout
+## 🧱 Project layout
 
 ```
 Sources/Core/   HAClient (WebSocket, state, energy), models, Keychain, localization
