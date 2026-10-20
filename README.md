@@ -12,7 +12,7 @@ A native macOS menu bar app for [Home Assistant](https://www.home-assistant.io).
 - 🔔 **Notifications and updates**: HA persistent notifications and available updates, with release notes and one-click install.
 - 💬 **Mac notifications**: notifications your automations already send to your phone also show up on the Mac, without changing them.
 - 📊 **Menu bar**: pick what shows next to the icon, e.g. alarm lock state and total power.
-- Drag and drop dashboard sections, light/dark/auto theme, French or English.
+- 🎨 Drag and drop dashboard sections, light/dark/auto theme, French or English.
 
 ## 📋 Requirements
 
