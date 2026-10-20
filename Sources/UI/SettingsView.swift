@@ -60,8 +60,8 @@ struct SettingsView: View {
 
                 section(L("Affichage")) {
                     SettingsGroup {
-                        SettingsRow(icon: "bolt.fill", color: .yellow, title: L("Énergie par pièce"),
-                                    subtitle: L("Tous les capteurs de puissance, groupés"), isOn: $ha.showEnergy)
+                        SettingsRow(icon: "house.fill", color: .yellow, title: L("Pièces"),
+                                    subtitle: L("Température, humidité et puissance de chaque pièce"), isOn: $ha.showEnergy)
                         SettingsRow(icon: "house.fill", color: .blue, title: L("Icône maison"),
                                     subtitle: L("Barre de menu"), isOn: $ha.menuShowHouse)
                         SettingsRow(icon: "bell.badge.fill", color: .red, title: L("Compteur de notifications"),
@@ -142,6 +142,14 @@ struct SettingsView: View {
                 }
             }
             .padding(2)
+        }
+        .safeAreaInset(edge: .bottom) {
+            Button(role: .destructive) { NSApp.terminate(nil) } label: {
+                Label(L("Quitter HABar"), systemImage: "power").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.glass)
+            .controlSize(.large)
+            .padding(.top, 8)
         }
         .scrollIndicators(.never)
         .frame(height: 540)

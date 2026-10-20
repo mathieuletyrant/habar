@@ -59,6 +59,7 @@ final class HAClient {
     private var powerIds: Set<String> = []
     private var areaByEntity: [String: String] = [:]
     private var floorByArea: [String: (name: String, level: Int)] = [:]
+    private var climateByArea: [String: (temperature: String?, humidity: String?)] = [:]  // sensors set on the HA area
     private var energyDevices: [EnergyDevice] = []
     @ObservationIgnored private var cameraLoop: Task<Void, Never>?
     @ObservationIgnored private let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
@@ -231,7 +232,10 @@ final class HAClient {
 
     private func resubscribe() {
         var ids = Set(tiles.map(\.entityId)).union(updateIds)
-        if showEnergy { ids.formUnion(powerIds) }
+        if showEnergy {
+            ids.formUnion(powerIds)
+            ids.formUnion(climateByArea.values.flatMap { [$0.temperature, $0.humidity] }.compactMap { $0 })
+        }
         guard status == .connected, ids != subscribed else { return }
         if let subId { send(["id": takeId(), "type": "unsubscribe_events", "subscription": subId]) }
         subscribed = ids
@@ -388,10 +392,12 @@ final class HAClient {
         }
         var areaName: [String: String] = [:]
         var floorOf: [String: (name: String, level: Int)] = [:]
+        var climate: [String: (temperature: String?, humidity: String?)] = [:]
         for a in areas {
             guard let id = a["area_id"] as? String, let name = a["name"] as? String else { continue }
             areaName[id] = name
             floorOf[name] = (a["floor_id"] as? String).flatMap { floorName[$0] }
+            climate[name] = (a["temperature_entity_id"] as? String, a["humidity_entity_id"] as? String)
         }
         var deviceArea: [String: String] = [:]
         var bySlug: [String: (name: String, model: String)] = [:]
@@ -412,6 +418,8 @@ final class HAClient {
         }
         areaByEntity = map
         floorByArea = floorOf
+        climateByArea = climate
+        resubscribe()  // watch the area climate sensors too
     }
 
     /// Devices from HA's Energy dashboard: the same source (and hierarchy) as its power flow card.
@@ -428,17 +436,21 @@ final class HAClient {
 
     struct EnergyDevice { let stat: String; let rate: String; let name: String?; let parent: String? }
     struct PowerItem: Identifiable { let id: String; let name: String; let watts: Double }
-    struct PowerArea: Identifiable { let id: String; let floor: String?; let watts: Double; let items: [PowerItem] }
+    struct Room: Identifiable {
+        let id: String; let floor: String?; let watts: Double
+        let items: [PowerItem]  // devices drawing power now
+        var temperature: Double?, humidity: Double?  // from the sensors set on the HA area, if any
+    }
 
-    /// Live power per device grouped by area: floors top-down, rooms alphabetical (a stable order:
+    /// Every HA area with live power and/or climate sensors: floors top-down, rooms alphabetical (a stable order:
     /// sorting by watts made rows swap places on every update).
     /// With Energy dashboard devices, a parent only counts what its children don't, like HA's power flow.
     /// Without them, falls back to every power sensor not already shown as a tile.
-    func powerByArea() -> [PowerArea] {
+    func rooms() -> [Room] {
         let devices: [(id: String, name: String?, watts: Double)]
         if energyDevices.isEmpty {
             let shown = Set(tiles.map(\.entityId))
-            devices = powerIds.subtracting(shown).compactMap { id in states[id]?.watts.map { (id, nil, $0) } }
+            devices = powerIds.subtracting(shown).compactMap { id in states[id]?.watts.map { (id, nil, max($0, 0)) } }
         } else {
             devices = energyDevices.compactMap { d in
                 guard let w = states[d.rate]?.watts else { return nil }
@@ -446,16 +458,23 @@ final class HAClient {
                 return (d.rate, d.name, max(w - children, 0))
             }
         }
-        let items = devices.filter { $0.watts >= 1 }.map { d -> (String, PowerItem) in
+        // every metered device counts for membership, so rooms don't pop in and out as values cross 0 W
+        let items = devices.map { d -> (String, PowerItem) in
             let area = areaByEntity[d.id] ?? L("Sans pièce")
             var name = d.name ?? states[d.id]?.name ?? d.id
             if name.lowercased().hasPrefix(area.lowercased() + " ") { name = String(name.dropFirst(area.count + 1)) }
             return (area, PowerItem(id: d.id, name: name, watts: d.watts))
         }
-        return Dictionary(grouping: items, by: \.0)
-            .map { area, list in
-                PowerArea(id: area, floor: floorByArea[area]?.name, watts: list.map(\.1.watts).reduce(0, +),
-                          items: list.map(\.1).sorted { $0.watts > $1.watts })
+        let byArea = Dictionary(grouping: items, by: \.0)
+        let withClimate = climateByArea.filter { $0.value.temperature != nil || $0.value.humidity != nil }.keys
+        return Set(byArea.keys).union(withClimate)
+            .map { area in
+                let list = byArea[area] ?? []
+                let climate = climateByArea[area]
+                return Room(id: area, floor: floorByArea[area]?.name, watts: list.map(\.1.watts).reduce(0, +),
+                                 items: list.map(\.1).filter { $0.watts >= 1 }.sorted { $0.watts > $1.watts },
+                                 temperature: climate?.temperature.flatMap { states[$0].flatMap { Double($0.state) } },
+                                 humidity: climate?.humidity.flatMap { states[$0].flatMap { Double($0.state) } })
             }
             .sorted {
                 let l0 = floorByArea[$0.id]?.level ?? Int.min, l1 = floorByArea[$1.id]?.level ?? Int.min

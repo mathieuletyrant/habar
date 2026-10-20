@@ -44,17 +44,17 @@ struct Dashboard: View {
             let t = tiles(.camera)
             if !t.isEmpty { TileSection(title: L("Caméras"), icon: "video.fill", drag: s) { CameraGrid(tiles: t) } }
         case .security:
-            let t = tiles(.alarm)
+            let t = Array(tiles(.alarm).dropFirst())  // the first alarm lives in the header (AlarmBadge)
             if !t.isEmpty { TileSection(title: L("Sécurité"), icon: "shield.fill", drag: s) { ForEach(t) { AlarmTile(tile: $0) } } }
         case .energy:
-            let rooms = ha.showEnergy ? ha.powerByArea() : []
+            let rooms = ha.showEnergy ? ha.rooms() : []
             // whole-house total = first power sensor shown as a tile; the gap with the rooms is "Autres"
             let houseTotal = ha.tiles.lazy.compactMap { ha.states[$0.entityId] }.first { $0.deviceClass == "power" }?.watts
             let roomsSum = rooms.map(\.watts).reduce(0, +)
             if !rooms.isEmpty {
-                TileSection(title: L("Énergie par pièce"), icon: "bolt.fill",
+                TileSection(title: L("Pièces"), icon: "house.fill",
                             trailing: EntityState.formatWatts(max(houseTotal ?? 0, roomsSum)), drag: s) {
-                    EnergyRooms(areas: rooms, other: (houseTotal ?? 0) - roomsSum)
+                    RoomsView(areas: rooms, other: houseTotal.map { max($0 - roomsSum, 0) })
                 }
             }
         }
@@ -98,6 +98,9 @@ struct Header: View {
             Spacer()
             GlassEffectContainer(spacing: 8) {
                 HStack(spacing: 8) {
+                    if page == .dashboard, let alarm = ha.tiles.first(where: { $0.kind == .alarm && $0.inDashboard }) {
+                        AlarmBadge(tile: alarm)
+                    }
                     let count = page == .inbox ? 0 : ha.badgeCount
                     Button { page = page == .inbox ? .dashboard : .inbox } label: {
                         HStack(spacing: 4) {
@@ -122,8 +125,6 @@ struct Header: View {
                             .contentTransition(.symbolEffect(.replace))
                     }
                     .help(L("Réglages"))
-                    Button { NSApp.terminate(nil) } label: { Image(systemName: "power") }
-                        .help(L("Quitter"))
                 }
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)

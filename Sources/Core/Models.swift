@@ -252,6 +252,11 @@ enum Alarm {
         }
     }
 
+    /// Header-sized: "Armée" instead of "Armée · absent".
+    static func shortLabel(_ s: String?) -> String {
+        s?.hasPrefix("armed") == true ? L("Armée") : label(s)
+    }
+
     static func label(_ s: String?) -> String {
         switch s {
         case "disarmed": L("Désarmée")

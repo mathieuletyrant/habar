@@ -4,6 +4,7 @@ import SwiftUI
 struct AlarmTile: View {
     @Environment(HAClient.self) private var ha
     let tile: Tile
+    var card = true  // false inside the header popover, which is already a surface
 
     @State private var askingCode = false
     @State private var code = ""
@@ -72,7 +73,7 @@ struct AlarmTile: View {
             }
         }
         .padding(14)
-        .glassCard(26, tint: disarmed ? nil : color)
+        .modifier(CardIf(on: card, tint: disarmed ? nil : color))
         .animation(.snappy, value: askingCode)
         .animation(.snappy, value: state)
     }
@@ -106,5 +107,42 @@ struct AlarmTile: View {
             }
             code = ""
         }
+    }
+}
+
+/// Compact alarm for the header: lock + state; click opens the full controls (the AlarmTile above) in a popover.
+struct AlarmBadge: View {
+    @Environment(HAClient.self) private var ha
+    let tile: Tile
+    @State private var open = false
+
+    var body: some View {
+        let e = ha.states[tile.entityId]
+        Button { open.toggle() } label: {
+            HStack(spacing: 5) {
+                Image(systemName: Alarm.menuSymbol(e?.state))
+                    .contentTransition(.symbolEffect(.replace))
+                    .symbolEffect(.pulse, isActive: e?.state == "triggered")
+                Text(Alarm.shortLabel(e?.state)).font(.callout.weight(.semibold)).lineLimit(1)
+            }
+            .foregroundStyle(tile.tint(e))
+        }
+        .buttonBorderShape(.capsule)
+        .help(tile.title(e))
+        .popover(isPresented: $open, arrowEdge: .bottom) {
+            AlarmTile(tile: tile, card: false)
+                .environment(ha)
+                .buttonBorderShape(.automatic)  // the header's buttons are circles; don't inherit that
+                .frame(width: 320)
+                .padding(6)
+        }
+    }
+}
+
+private struct CardIf: ViewModifier {
+    let on: Bool
+    let tint: Color?
+    func body(content: Content) -> some View {
+        if on { content.glassCard(26, tint: tint) } else { content }
     }
 }
