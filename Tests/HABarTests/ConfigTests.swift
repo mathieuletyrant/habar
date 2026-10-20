@@ -20,3 +20,9 @@ import Testing
     #expect(c.tiles[0].kind == .camera)        // guessed from the domain
     #expect(c.tiles[1].inDashboard == false)   // legacy "hidden" key
 }
+
+@Test func slugMatchesHomeAssistant() {
+    #expect(HAClient.slug("Mathieu's iPhone") == "mathieus_iphone")
+    #expect(HAClient.slug("iPhone de Julie") == "iphone_de_julie")
+    #expect(HAClient.slug("Salle à manger") == "salle_a_manger")
+}

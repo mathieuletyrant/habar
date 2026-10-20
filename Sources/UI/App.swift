@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 @main
 struct HABarApp: App {
@@ -12,7 +13,7 @@ struct HABarApp: App {
 /// AppKit status item + popover rather than MenuBarExtra: NSPopover can be opened from code,
 /// which launching the app from Spotlight/Raycast needs.
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, UNUserNotificationCenterDelegate {
     let ha = HAClient()
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let popover = NSPopover()
@@ -28,6 +29,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         item.button?.action = #selector(toggle)
         trackIcon()
         trackAppearance()
+        UNUserNotificationCenter.current().delegate = self
+    }
+
+    // Banners show even while the popover (so the app) is active; clicking one opens the popover.
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async
+        -> UNNotificationPresentationOptions { [.banner, .sound, .list] }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        await MainActor.run { show() }
     }
 
     /// NSPopover takes the menu bar's appearance, not the app's: apply the Theme setting to it directly.

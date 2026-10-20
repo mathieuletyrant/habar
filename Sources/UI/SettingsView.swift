@@ -69,6 +69,32 @@ struct SettingsView: View {
                     }
                 }
 
+                section(L("Notifications sur le Mac")) {
+                    SettingsGroup {
+                        ForEach(ha.notifyServices) { service in
+                            SettingsRow(icon: service.icon, color: service.icon == "bell.fill" ? .gray : .blue,
+                                        title: service.name, subtitle: "notify.\(service.id)", isOn: Binding(
+                                            get: { ha.mirrorNotify.contains(service.id) },
+                                            set: { on in
+                                                if on { ha.mirrorNotify.append(service.id) } else { ha.mirrorNotify.removeAll { $0 == service.id } }
+                                            }))
+                        }
+                        SettingsRow(icon: "bell.and.waves.left.and.right.fill", color: .orange, title: L("Notification de test")) {
+                            Button(L("Envoyer")) {
+                                ha.requestNotificationPermission()
+                                ha.postNotification(title: "HABar", body: L("Les notifications fonctionnent ✓"))
+                            }
+                            .buttonStyle(.glass)
+                            .controlSize(.small)
+                        }
+                    }
+                    .task { await ha.loadNotifyServices() }
+                    Text(L("Les notifications envoyées par tes automatisations aux services cochés s'affichent aussi sur ce Mac."))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                }
+
                 section(L("Connexion")) {
                     SettingsGroup {
                         SettingsRow(icon: "globe", color: .blue, title: L("Serveur")) {

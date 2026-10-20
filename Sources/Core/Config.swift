@@ -13,6 +13,7 @@ struct Config: Codable {
     var showEnergy = true
     var menuShowHouse = true
     var menuShowBadge = true
+    var mirrorNotify: [String] = []  // notify.* services (e.g. "mobile_app_iphone") also shown as macOS notifications
 
     static let file = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".config/habar/config.json")
 
@@ -30,6 +31,7 @@ struct Config: Codable {
         showEnergy = c.value(.showEnergy, d.showEnergy)
         menuShowHouse = c.value(.menuShowHouse, d.menuShowHouse)
         menuShowBadge = c.value(.menuShowBadge, d.menuShowBadge)
+        mirrorNotify = c.value(.mirrorNotify, d.mirrorNotify)
     }
 
     static func load() -> Config {

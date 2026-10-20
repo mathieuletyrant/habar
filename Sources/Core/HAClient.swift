@@ -1,4 +1,5 @@
 import AppKit
+import UserNotifications
 import Observation
 import os
 
@@ -24,6 +25,11 @@ final class HAClient {
     var showEnergy = saved.showEnergy { didSet { save(); resubscribe() } }
     var menuShowHouse = saved.menuShowHouse { didSet { save() } }
     var menuShowBadge = saved.menuShowBadge { didSet { save() } }
+    var mirrorNotify = saved.mirrorNotify {
+        didSet { save(); if !mirrorNotify.isEmpty { requestNotificationPermission() } }
+    }
+    var notifyServices: [NotifyService] = []  // notify.* services available in HA, for Settings
+    @ObservationIgnored private var devicesBySlug: [String: (name: String, model: String)] = [:]
     var appearance = saved.appearance {
         didSet { save(); NSApp.appearance = appearance.ns }
     }
@@ -46,6 +52,7 @@ final class HAClient {
     @ObservationIgnored private var pending: [Int: CheckedContinuation<Any?, Error>] = [:]
     @ObservationIgnored private var subId: Int?
     @ObservationIgnored private var notifSubId: Int?
+    @ObservationIgnored private var callSubId: Int?
     @ObservationIgnored private var subscribed: Set<String> = []
     private var updateIds: Set<String> = []  // observed: badgeCount depends on it
     private var powerIds: Set<String> = []
@@ -71,6 +78,7 @@ final class HAClient {
         }
         connect()
         startCameraLoop()
+        if !mirrorNotify.isEmpty { requestNotificationPermission() }
     }
 
     var baseURL: URL? {
@@ -144,6 +152,9 @@ final class HAClient {
             let nid = takeId()
             notifSubId = nid
             send(["id": nid, "type": "persistent_notification/subscribe"])
+            let cid = takeId()
+            callSubId = cid
+            send(["id": cid, "type": "subscribe_events", "event_type": "call_service"])
             Task {
                 if let c = try? await request(["type": "get_config"]) as? [String: Any],
                    let name = c["location_name"] as? String { homeName = name }
@@ -167,7 +178,7 @@ final class HAClient {
         case "event":
             guard let ev = m["event"] as? [String: Any] else { return }
             let id = m["id"] as? Int
-            if id == subId { apply(ev) } else if id == notifSubId { applyNotifications(ev) }
+            if id == subId { apply(ev) } else if id == notifSubId { applyNotifications(ev) } else if id == callSubId { mirror(ev) }
         default:
             break
         }
@@ -268,6 +279,59 @@ final class HAClient {
         try? await call("persistent_notification", "dismiss", nil, ["notification_id": n.id])
     }
 
+    // MARK: - Mac notifications
+
+    /// Mirrors notify.* calls made by HA automations (e.g. to the phone) as macOS notifications: automations stay as they are.
+    private func mirror(_ ev: [String: Any]) {
+        guard let d = ev["data"] as? [String: Any], d["domain"] as? String == "notify",
+              let service = d["service"] as? String, mirrorNotify.contains(service) else { return }
+        let data = d["service_data"] as? [String: Any] ?? [:]
+        postNotification(title: data["title"] as? String ?? (homeName.isEmpty ? "Home Assistant" : homeName),
+                         body: data["message"] as? String ?? "")
+    }
+
+    func postNotification(title: String, body: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+    }
+
+    func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if !granted { log.error("notifications not allowed: \(error?.localizedDescription ?? "denied", privacy: .public)") }
+        }
+    }
+
+    struct NotifyService: Identifiable { let id: String; let name: String; let icon: String }
+
+    /// notify.mobile_app_<slug> services are named after their device in the registry, so we show that device's name.
+    func loadNotifyServices() async {
+        guard let all = try? await request(["type": "get_services"]) as? [String: Any],
+              let notify = all["notify"] as? [String: Any] else { return }
+        notifyServices = notify.keys.filter { $0 != "persistent_notification" }.map { id in
+            if id.hasPrefix("mobile_app_"), let device = devicesBySlug[String(id.dropFirst("mobile_app_".count))] {
+                let m = device.model.lowercased()
+                let icon = m.contains("ipad") ? "ipad" : m.contains("watch") ? "applewatch"
+                    : m.contains("mac") ? "laptopcomputer" : m.contains("iphone") ? "iphone" : "smartphone"
+                return NotifyService(id: id, name: device.name, icon: icon)
+            }
+            // HA's own names here are boilerplate ("Send a notification with …"): the service id reads better
+            let name = id.replacingOccurrences(of: "_", with: " ").prefix(1).uppercased() + id.replacingOccurrences(of: "_", with: " ").dropFirst()
+            return NotifyService(id: id, name: name, icon: "bell.fill")
+        }
+        .sorted { ($0.icon == "bell.fill" ? 1 : 0, $0.name) < ($1.icon == "bell.fill" ? 1 : 0, $1.name) }  // devices first
+    }
+
+    /// Same idea as HA's slugify: "Mathieu's iPhone" -> "mathieus_iphone".
+    nonisolated static func slug(_ s: String) -> String {
+        s.folding(options: .diacriticInsensitive, locale: nil).lowercased()
+            .replacingOccurrences(of: "'", with: "").replacingOccurrences(of: "\u{2019}", with: "")
+            .split { !($0.isASCII && ($0.isLetter || $0.isNumber)) }
+            .joined(separator: "_")
+    }
+
     func releaseNotes(_ entityId: String) async -> String? {
         try? await request(["type": "update/release_notes", "entity_id": entityId]) as? String
     }
@@ -306,7 +370,16 @@ final class HAClient {
             floorOf[name] = (a["floor_id"] as? String).flatMap { floorName[$0] }
         }
         var deviceArea: [String: String] = [:]
-        for d in devices { if let id = d["id"] as? String { deviceArea[id] = d["area_id"] as? String } }
+        var bySlug: [String: (name: String, model: String)] = [:]
+        for d in devices {
+            guard let id = d["id"] as? String else { continue }
+            deviceArea[id] = d["area_id"] as? String
+            // the service is named after the device's original name; show the user's rename if any
+            let original = d["name"] as? String, renamed = d["name_by_user"] as? String
+            guard let shown = renamed ?? original else { continue }
+            for n in [original, renamed].compactMap({ $0 }) { bySlug[Self.slug(n)] = (shown, d["model"] as? String ?? "") }
+        }
+        devicesBySlug = bySlug
         var map: [String: String] = [:]
         for e in entities {
             guard let id = e["entity_id"] as? String else { continue }
@@ -434,6 +507,7 @@ final class HAClient {
         c.showEnergy = showEnergy
         c.menuShowHouse = menuShowHouse
         c.menuShowBadge = menuShowBadge
+        c.mirrorNotify = mirrorNotify
         c.save()
     }
 }
