@@ -10,6 +10,7 @@ A native macOS menu bar app for [Home Assistant](https://www.home-assistant.io).
 - **Alarm**: arm without a code, disarm with your PIN (asked only when HA requires one).
 - **Energy by room**: live power per floor and room, from your HA Energy dashboard (same source and hierarchy as HA's power flow card).
 - **Notifications and updates**: HA persistent notifications and available updates, with release notes and one-click install.
+- **Mac notifications**: notifications your automations already send to your phone also show up on the Mac, without changing them.
 - **Menu bar**: pick what shows next to the icon, e.g. alarm lock state and total power.
 - Drag and drop dashboard sections, light/dark/auto theme, French or English.
 
@@ -81,6 +82,18 @@ Every key is optional; a tile only needs an `entityId` (its kind is guessed from
 ```
 
 The server URL and token are not in there: they're per Mac (UserDefaults and Keychain), entered once in Settings. The file is read at launch.
+
+## Mac notifications
+
+When an automation calls a `notify.*` service (e.g. `notify.mobile_app_my_iphone`), HABar can mirror it as a macOS notification: same title and message, and clicking it opens the notification's `data.url`, like a tap on the phone. Your automations stay unchanged.
+
+Pick the services to mirror in **Settings → Notifications on this Mac** (phones are listed by their device name), or in `config.json`:
+
+```json
+{ "mirrorNotify": ["mobile_app_my_iphone"] }
+```
+
+It relies on HA's `call_service` events, so the token must belong to an admin user, and HABar has to be running. If nothing shows up, check that macOS allows HABar's notifications (Settings shows a warning when it doesn't).
 
 ## Energy by room
 
