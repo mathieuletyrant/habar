@@ -18,6 +18,16 @@ A native macOS menu bar app for [Home Assistant](https://www.home-assistant.io).
 
 ## Install
 
+With Homebrew (Apple Silicon):
+
+```sh
+brew install --cask mathieuletyrant/tap/habar
+```
+
+The app isn't notarized (no Apple Developer account), so the cask removes the quarantine flag after install.
+
+From source:
+
 ```sh
 git clone git@github.com:mathieuletyrant/habar.git
 cd habar
@@ -25,6 +35,9 @@ cd habar
 ```
 
 `./build.sh` alone builds `build/HABar.app` without installing it.
+
+To publish a new version: bump `CFBundleShortVersionString` in `Info.plist`, then `./build.sh release`.
+The cask always fetches the latest release, so the tap needs no change; upgrade with `brew upgrade --cask --greedy habar`.
 
 ## Setup
 
